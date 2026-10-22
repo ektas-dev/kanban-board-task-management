@@ -443,5 +443,6 @@ class AdminServiceImplTest {
         assertEquals(0L, result.getCompletedTasks());
         assertEquals(0L, result.getToDoTasks());
         assertEquals(0L, result.getInProgressTasks());
+        
     }
 }
