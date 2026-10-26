@@ -1,6 +1,5 @@
 package com.boardtask.kanban.entity;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import com.boardtask.kanban.enums.Role;
@@ -15,8 +14,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Email;
@@ -64,19 +61,4 @@ public class AppUser {
 	@OneToMany(mappedBy = "appUser", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
 	private List<Task> tasks;
 
-	@Column(updatable = false)
-	private LocalDateTime createdAt;
-
-	private LocalDateTime updatedAt;
-
-	@PrePersist
-	protected void onCreate() {
-		this.createdAt = LocalDateTime.now();
-		this.updatedAt = LocalDateTime.now();
-	}
-
-	@PreUpdate
-	protected void onUpdate() {
-		this.updatedAt = LocalDateTime.now();
-	}
 }

@@ -1,16 +1,15 @@
 package com.boardtask.kanban.service;
 
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -36,289 +35,248 @@ import com.boardtask.kanban.entity.AppUser;
 import com.boardtask.kanban.enums.Role;
 import com.boardtask.kanban.repository.AppUserRepository;
 import com.boardtask.kanban.security.JwtService;
-import com.boardtask.kanban.service.AuthServiceImpl;
-
-import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
-    @Mock
-    private AppUserRepository appUserRepository;
+	@Mock
+	private AppUserRepository appUserRepository;
 
-    @Mock
-    private PasswordEncoder passwordEncoder;
+	@Mock
+	private PasswordEncoder passwordEncoder;
 
-    @Mock
-    private AuthenticationManager authenticationManager;
+	@Mock
+	private AuthenticationManager authenticationManager;
 
-    @Mock
-    private JwtService jwtService;
+	@Mock
+	private JwtService jwtService;
 
-    @InjectMocks
-    private AuthServiceImpl authService;
+	@InjectMocks
+	private AuthServiceImpl authService;
 
-    private RegisterRequestDto registerRequest;
-    private LoginRequestDto loginRequest;
+	private RegisterRequestDto registerRequest;
+	private LoginRequestDto loginRequest;
 
-    @BeforeEach
-    void setUp() {
-        registerRequest = mock(RegisterRequestDto.class);
-        loginRequest = mock(LoginRequestDto.class);
-    }
+	@BeforeEach
+	void setUp() {
+		registerRequest = mock(RegisterRequestDto.class);
+		loginRequest = mock(LoginRequestDto.class);
+	}
 
-    // ---------------------------------------------------------
-    // register()
-    // ---------------------------------------------------------
+	// ---------------------------------------------------------
+	// register()
+	// ---------------------------------------------------------
 
-    @Test
-    void register_newUser_returnsAuthResponse() {
-        when(registerRequest.getName()).thenReturn("John Doe");
-        when(registerRequest.getEmail()).thenReturn("john@example.com");
-        when(registerRequest.getPassword()).thenReturn("rawPassword");
+	@Test
+	void register_newUser_returnsAuthResponse() {
+		when(registerRequest.getName()).thenReturn("John Doe");
+		when(registerRequest.getEmail()).thenReturn("john@example.com");
+		when(registerRequest.getPassword()).thenReturn("rawPassword");
 
-        when(appUserRepository.existsByEmail("john@example.com"))
-                .thenReturn(false);
-        when(passwordEncoder.encode("rawPassword"))
-                .thenReturn("encodedPassword");
+		when(appUserRepository.existsByEmail("john@example.com")).thenReturn(false);
+		when(passwordEncoder.encode("rawPassword")).thenReturn("encodedPassword");
 
-        AppUser savedUser = mock(AppUser.class);
+		AppUser savedUser = mock(AppUser.class);
 
-        when(savedUser.getName()).thenReturn("John Doe");
-        when(savedUser.getEmail()).thenReturn("john@example.com");
-        when(savedUser.getPassword()).thenReturn("encodedPassword");
-        when(savedUser.getRole()).thenReturn(Role.USER);
+		when(savedUser.getName()).thenReturn("John Doe");
+		when(savedUser.getEmail()).thenReturn("john@example.com");
+		when(savedUser.getPassword()).thenReturn("encodedPassword");
+		when(savedUser.getRole()).thenReturn(Role.USER);
 
-        when(appUserRepository.save(any(AppUser.class)))
-                .thenReturn(savedUser);
-        when(jwtService.generateToken(any(UserDetails.class)))
-                .thenReturn("jwt-token");
+		when(appUserRepository.save(any(AppUser.class))).thenReturn(savedUser);
+		when(jwtService.generateToken(any(UserDetails.class))).thenReturn("jwt-token");
 
-        AuthResponseDto response = authService.register(registerRequest);
+		AuthResponseDto response = authService.register(registerRequest);
 
-        assertNotNull(response);
-        assertEquals("jwt-token", response.getToken());
-        assertEquals("Bearer", response.getTokenType());
-        assertEquals("John Doe", response.getName());
-        assertEquals("john@example.com", response.getEmail());
-        assertEquals(Role.USER, response.getRole());
+		assertNotNull(response);
+		assertEquals("jwt-token", response.getToken());
+		assertEquals("Bearer", response.getTokenType());
+		assertEquals("John Doe", response.getName());
+		assertEquals("john@example.com", response.getEmail());
+		assertEquals(Role.USER, response.getRole());
 
-        verify(appUserRepository).existsByEmail("john@example.com");
-        verify(passwordEncoder).encode("rawPassword");
+		verify(appUserRepository).existsByEmail("john@example.com");
+		verify(passwordEncoder).encode("rawPassword");
 
-        ArgumentCaptor<AppUser> userCaptor =
-                ArgumentCaptor.forClass(AppUser.class);
+		ArgumentCaptor<AppUser> userCaptor = ArgumentCaptor.forClass(AppUser.class);
 
-        verify(appUserRepository).save(userCaptor.capture());
+		verify(appUserRepository).save(userCaptor.capture());
 
-        AppUser userToSave = userCaptor.getValue();
+		AppUser userToSave = userCaptor.getValue();
 
-        assertEquals("John Doe", userToSave.getName());
-        assertEquals("john@example.com", userToSave.getEmail());
-        assertEquals("encodedPassword", userToSave.getPassword());
-        assertEquals(Role.USER, userToSave.getRole());
+		assertEquals("John Doe", userToSave.getName());
+		assertEquals("john@example.com", userToSave.getEmail());
+		assertEquals("encodedPassword", userToSave.getPassword());
+		assertEquals(Role.USER, userToSave.getRole());
 
-        ArgumentCaptor<UserDetails> userDetailsCaptor =
-                ArgumentCaptor.forClass(UserDetails.class);
+		ArgumentCaptor<UserDetails> userDetailsCaptor = ArgumentCaptor.forClass(UserDetails.class);
 
-        verify(jwtService).generateToken(userDetailsCaptor.capture());
+		verify(jwtService).generateToken(userDetailsCaptor.capture());
 
-        UserDetails tokenUser = userDetailsCaptor.getValue();
+		UserDetails tokenUser = userDetailsCaptor.getValue();
 
-        assertEquals("john@example.com", tokenUser.getUsername());
-        assertEquals("encodedPassword", tokenUser.getPassword());
-        assertEquals(
-                List.of(new SimpleGrantedAuthority("ROLE_USER")),
-                tokenUser.getAuthorities());
+		assertEquals("john@example.com", tokenUser.getUsername());
+		assertEquals("encodedPassword", tokenUser.getPassword());
 
-        verify(authenticationManager, never()).authenticate(any());
-    }
+		assertEquals(java.util.Set.of(new SimpleGrantedAuthority("ROLE_USER")), tokenUser.getAuthorities());
 
-    @Test
-    void register_emailAlreadyExists_throwsRuntimeException() {
-        when(registerRequest.getEmail()).thenReturn("john@example.com");
+		verify(authenticationManager, never()).authenticate(any());
+	}
 
-        when(appUserRepository.existsByEmail("john@example.com"))
-                .thenReturn(true);
+	@Test
+	void register_emailAlreadyExists_throwsRuntimeException() {
+		when(registerRequest.getEmail()).thenReturn("john@example.com");
 
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
-                () -> authService.register(registerRequest));
+		when(appUserRepository.existsByEmail("john@example.com")).thenReturn(true);
 
-        assertEquals("Email already registered", exception.getMessage());
+		RuntimeException exception = assertThrows(RuntimeException.class, () -> authService.register(registerRequest));
 
-        verify(appUserRepository).existsByEmail("john@example.com");
-        verify(appUserRepository, never()).save(any(AppUser.class));
+		assertEquals("Email already registered", exception.getMessage());
 
-        verifyNoInteractions(passwordEncoder, jwtService,
-                authenticationManager);
-    }
+		verify(appUserRepository).existsByEmail("john@example.com");
+		verify(appUserRepository, never()).save(any(AppUser.class));
 
-    @Test
-    void register_passwordEncoderFails_propagatesException() {
-        when(registerRequest.getName()).thenReturn("John Doe");
-        when(registerRequest.getEmail()).thenReturn("john@example.com");
-        when(registerRequest.getPassword()).thenReturn("rawPassword");
+		verifyNoInteractions(passwordEncoder, jwtService, authenticationManager);
+	}
 
-        when(appUserRepository.existsByEmail("john@example.com"))
-                .thenReturn(false);
+	@Test
+	void register_passwordEncoderFails_propagatesException() {
+		when(registerRequest.getName()).thenReturn("John Doe");
+		when(registerRequest.getEmail()).thenReturn("john@example.com");
+		when(registerRequest.getPassword()).thenReturn("rawPassword");
 
-        when(passwordEncoder.encode("rawPassword"))
-                .thenThrow(new IllegalStateException("Encoding failed"));
+		when(appUserRepository.existsByEmail("john@example.com")).thenReturn(false);
 
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
-                () -> authService.register(registerRequest));
+		when(passwordEncoder.encode("rawPassword")).thenThrow(new IllegalStateException("Encoding failed"));
 
-        assertEquals("Encoding failed", exception.getMessage());
+		IllegalStateException exception = assertThrows(IllegalStateException.class,
+				() -> authService.register(registerRequest));
 
-        verify(appUserRepository, never()).save(any(AppUser.class));
-        verifyNoInteractions(jwtService, authenticationManager);
-    }
+		assertEquals("Encoding failed", exception.getMessage());
 
-    // ---------------------------------------------------------
-    // login()
-    // ---------------------------------------------------------
+		verify(appUserRepository, never()).save(any(AppUser.class));
+		verifyNoInteractions(jwtService, authenticationManager);
+	}
 
-    @Test
-    void login_validCredentials_returnsAuthResponse() {
-        when(loginRequest.getEmail()).thenReturn("john@example.com");
-        when(loginRequest.getPassword()).thenReturn("rawPassword");
+	// ---------------------------------------------------------
+	// login()
+	// ---------------------------------------------------------
 
-        UserDetails principal = User.withUsername("john@example.com")
-                .password("encodedPassword")
-                .authorities("ROLE_USER")
-                .build();
+	@Test
+	void login_validCredentials_returnsAuthResponse() {
+		when(loginRequest.getEmail()).thenReturn("john@example.com");
+		when(loginRequest.getPassword()).thenReturn("rawPassword");
 
-        Authentication authentication = mock(Authentication.class);
+		UserDetails principal = User.withUsername("john@example.com").password("encodedPassword")
+				.authorities("ROLE_USER").build();
 
-        when(authentication.getPrincipal()).thenReturn(principal);
+		Authentication authentication = mock(Authentication.class);
 
-        when(authenticationManager.authenticate(
-                any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
+		when(authentication.getPrincipal()).thenReturn(principal);
 
-        when(jwtService.generateToken(principal))
-                .thenReturn("jwt-token");
+		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+				.thenReturn(authentication);
 
-        AppUser user = mock(AppUser.class);
+		when(jwtService.generateToken(principal)).thenReturn("jwt-token");
 
-        when(user.getName()).thenReturn("John Doe");
-        when(user.getEmail()).thenReturn("john@example.com");
-        when(user.getRole()).thenReturn(Role.USER);
+		AppUser user = mock(AppUser.class);
 
-        when(appUserRepository.findByEmail("john@example.com"))
-                .thenReturn(Optional.of(user));
+		when(user.getName()).thenReturn("John Doe");
+		when(user.getEmail()).thenReturn("john@example.com");
+		when(user.getRole()).thenReturn(Role.USER);
 
-        AuthResponseDto response = authService.login(loginRequest);
+		when(appUserRepository.findByEmail("john@example.com")).thenReturn(Optional.of(user));
 
-        assertNotNull(response);
-        assertEquals("jwt-token", response.getToken());
-        assertEquals("Bearer", response.getTokenType());
-        assertEquals("John Doe", response.getName());
-        assertEquals("john@example.com", response.getEmail());
-        assertEquals(Role.USER, response.getRole());
+		AuthResponseDto response = authService.login(loginRequest);
 
-        ArgumentCaptor<UsernamePasswordAuthenticationToken> authCaptor =
-                ArgumentCaptor.forClass(
-                        UsernamePasswordAuthenticationToken.class);
+		assertNotNull(response);
+		assertEquals("jwt-token", response.getToken());
+		assertEquals("Bearer", response.getTokenType());
+		assertEquals("John Doe", response.getName());
+		assertEquals("john@example.com", response.getEmail());
+		assertEquals(Role.USER, response.getRole());
 
-        verify(authenticationManager).authenticate(authCaptor.capture());
+		ArgumentCaptor<UsernamePasswordAuthenticationToken> authCaptor = ArgumentCaptor
+				.forClass(UsernamePasswordAuthenticationToken.class);
 
-        UsernamePasswordAuthenticationToken credentials =
-                authCaptor.getValue();
+		verify(authenticationManager).authenticate(authCaptor.capture());
 
-        assertEquals("john@example.com", credentials.getPrincipal());
-        assertEquals("rawPassword", credentials.getCredentials());
+		UsernamePasswordAuthenticationToken credentials = authCaptor.getValue();
 
-        verify(jwtService).generateToken(principal);
-        verify(appUserRepository).findByEmail("john@example.com");
-    }
+		assertEquals("john@example.com", credentials.getPrincipal());
+		assertEquals("rawPassword", credentials.getCredentials());
 
-    @Test
-    void login_invalidCredentials_propagatesAuthenticationException() {
-        when(loginRequest.getEmail()).thenReturn("john@example.com");
-        when(loginRequest.getPassword()).thenReturn("wrongPassword");
+		verify(jwtService).generateToken(principal);
+		verify(appUserRepository).findByEmail("john@example.com");
+	}
 
-        when(authenticationManager.authenticate(
-                any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new BadCredentialsException("Bad credentials"));
+	@Test
+	void login_invalidCredentials_propagatesAuthenticationException() {
+		when(loginRequest.getEmail()).thenReturn("john@example.com");
+		when(loginRequest.getPassword()).thenReturn("wrongPassword");
 
-        assertThrows(
-                BadCredentialsException.class,
-                () -> authService.login(loginRequest));
+		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+				.thenThrow(new BadCredentialsException("Bad credentials"));
 
-        verify(authenticationManager).authenticate(
-                any(UsernamePasswordAuthenticationToken.class));
+		assertThrows(BadCredentialsException.class, () -> authService.login(loginRequest));
 
-        verifyNoInteractions(jwtService);
-        verify(appUserRepository, never()).findByEmail(any());
-    }
+		verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
 
-    @Test
-    void login_authenticatedUserNotFound_throwsRuntimeException() {
-        when(loginRequest.getEmail()).thenReturn("john@example.com");
-        when(loginRequest.getPassword()).thenReturn("rawPassword");
+		verifyNoInteractions(jwtService);
+		verify(appUserRepository, never()).findByEmail(any());
+	}
 
-        UserDetails principal = User.withUsername("john@example.com")
-                .password("encodedPassword")
-                .authorities("ROLE_USER")
-                .build();
+	@Test
+	void login_authenticatedUserNotFound_throwsRuntimeException() {
+		when(loginRequest.getEmail()).thenReturn("john@example.com");
+		when(loginRequest.getPassword()).thenReturn("rawPassword");
 
-        Authentication authentication = mock(Authentication.class);
+		UserDetails principal = User.withUsername("john@example.com").password("encodedPassword")
+				.authorities("ROLE_USER").build();
 
-        when(authentication.getPrincipal()).thenReturn(principal);
+		Authentication authentication = mock(Authentication.class);
 
-        when(authenticationManager.authenticate(
-                any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
+		when(authentication.getPrincipal()).thenReturn(principal);
 
-        when(jwtService.generateToken(principal))
-                .thenReturn("jwt-token");
+		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+				.thenReturn(authentication);
 
-        when(appUserRepository.findByEmail("john@example.com"))
-                .thenReturn(Optional.empty());
+		when(jwtService.generateToken(principal)).thenReturn("jwt-token");
 
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
-                () -> authService.login(loginRequest));
+		when(appUserRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
 
-        assertEquals("User not found", exception.getMessage());
+		RuntimeException exception = assertThrows(RuntimeException.class, () -> authService.login(loginRequest));
 
-        verify(authenticationManager).authenticate(
-                any(UsernamePasswordAuthenticationToken.class));
+		assertEquals("User not found", exception.getMessage());
 
-        verify(jwtService).generateToken(principal);
-        verify(appUserRepository).findByEmail("john@example.com");
-    }
+		verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
 
-    @Test
-    void login_jwtGenerationFails_propagatesException() {
-        when(loginRequest.getEmail()).thenReturn("john@example.com");
-        when(loginRequest.getPassword()).thenReturn("rawPassword");
+		verify(jwtService).generateToken(principal);
+		verify(appUserRepository).findByEmail("john@example.com");
+	}
 
-        UserDetails principal = User.withUsername("john@example.com")
-                .password("encodedPassword")
-                .authorities("ROLE_USER")
-                .build();
+	@Test
+	void login_jwtGenerationFails_propagatesException() {
+		when(loginRequest.getEmail()).thenReturn("john@example.com");
+		when(loginRequest.getPassword()).thenReturn("rawPassword");
 
-        Authentication authentication = mock(Authentication.class);
+		UserDetails principal = User.withUsername("john@example.com").password("encodedPassword")
+				.authorities("ROLE_USER").build();
 
-        when(authentication.getPrincipal()).thenReturn(principal);
+		Authentication authentication = mock(Authentication.class);
 
-        when(authenticationManager.authenticate(
-                any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
+		when(authentication.getPrincipal()).thenReturn(principal);
 
-        when(jwtService.generateToken(principal))
-                .thenThrow(new IllegalStateException("JWT generation failed"));
+		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+				.thenReturn(authentication);
 
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
-                () -> authService.login(loginRequest));
+		when(jwtService.generateToken(principal)).thenThrow(new IllegalStateException("JWT generation failed"));
 
-        assertEquals("JWT generation failed", exception.getMessage());
+		IllegalStateException exception = assertThrows(IllegalStateException.class,
+				() -> authService.login(loginRequest));
 
-        verify(appUserRepository, never()).findByEmail(any());
-    }
+		assertEquals("JWT generation failed", exception.getMessage());
+
+		verify(appUserRepository, never()).findByEmail(any());
+	}
 }

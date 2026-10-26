@@ -16,8 +16,7 @@ public class TaskMapper {
 
 	// Entity → Response DTO
 	public static TaskResponseDto toResponseDto(Task task) {
-		return new TaskResponseDto(task.getId(), task.getTitle(), task.getDescription(), task.getStatus(),
-				task.getCreatedAt(), task.getUpdatedAt());
+		return new TaskResponseDto(task.getId(), task.getTitle(), task.getDescription(), task.getStatus());
 	}
 
 	// Update existing entity from DTO

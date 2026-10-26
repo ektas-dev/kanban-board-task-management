@@ -26,7 +26,6 @@ import com.boardtask.kanban.exception.BadRequestException;
 import com.boardtask.kanban.mapper.UserMapper;
 import com.boardtask.kanban.repository.AppUserRepository;
 import com.boardtask.kanban.security.SecurityUtil;
-import com.boardtask.kanban.service.UserServiceImpl;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
