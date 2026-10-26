@@ -19,254 +19,210 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.boardtask.kanban.controller.TaskController;
+import com.boardtask.kanban.config.SecurityConfig;
 import com.boardtask.kanban.dto.task.TaskRequestDto;
 import com.boardtask.kanban.dto.task.TaskResponseDto;
 import com.boardtask.kanban.dto.task.TaskStatusUpdateDto;
 import com.boardtask.kanban.enums.TaskStatus;
+import com.boardtask.kanban.security.JwtAuthenticationFilter;
+import com.boardtask.kanban.security.JwtService;
 import com.boardtask.kanban.service.TaskService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest(TaskController.class)
+@Import(SecurityConfig.class)
+@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc(addFilters = false)
 class TaskControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+	@Autowired
+	private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+	@Autowired
+	private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private TaskService taskService;
+	@MockitoBean
+	private TaskService taskService;
 
-    private org.springframework.test.web.servlet.request
-            .RequestPostProcessor authenticatedUser() {
-        return user("testuser").authorities(
-                new SimpleGrantedAuthority("ROLE_USER"));
-    }
+	@MockitoBean
+	private JwtService jwtService;
 
-    private TaskResponseDto createTaskResponse() {
-        // Avoid assuming that TaskResponseDto has a builder.
-        TaskResponseDto dto = org.mockito.Mockito.mock(
-                TaskResponseDto.class);
+	@MockitoBean
+	private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-        when(dto.getId()).thenReturn(1L);
-        when(dto.getTitle()).thenReturn("Test task");
-        return dto;
-    }
+	@MockitoBean
+	private UserDetailsService userDetailsService;
 
-    // ---------------------------------------------------------
-    // POST /api/tasks
-    // ---------------------------------------------------------
+	private org.springframework.test.web.servlet.request.RequestPostProcessor authenticatedUser() {
+		return user("testuser").authorities(new SimpleGrantedAuthority("ROLE_USER"));
+	}
 
-    @Test
-    void createTask_validRequest_returnsCreated() throws Exception {
-        TaskRequestDto request = new TaskRequestDto();
-        request.setTitle("Test task");
-        request.setDescription("Test description");
+	private TaskResponseDto createTaskResponse() {
+		return TaskResponseDto.builder().id(1L).title("Test task").build();
+	}
 
-        TaskResponseDto response = createTaskResponse();
+	// ---------------------------------------------------------
+	// POST /api/tasks
+	// ---------------------------------------------------------
 
-        when(taskService.createTask(any(TaskRequestDto.class)))
-                .thenReturn(response);
+	@Test
+	void createTask_validRequest_returnsCreated() throws Exception {
+		TaskRequestDto request = new TaskRequestDto();
+		request.setTitle("Test task");
+		request.setDescription("Test description");
 
-        mockMvc.perform(post("/api/tasks")
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.title").value("Test task"));
+		TaskResponseDto response = createTaskResponse();
 
-        verify(taskService).createTask(any(TaskRequestDto.class));
-    }
+		when(taskService.createTask(any(TaskRequestDto.class))).thenReturn(response);
 
-    // ---------------------------------------------------------
-    // GET /api/tasks
-    // ---------------------------------------------------------
+		mockMvc.perform(post("/api/tasks").with(authenticatedUser()).contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request))).andExpect(status().isCreated())
+				.andExpect(jsonPath("$.id").value(1)).andExpect(jsonPath("$.title").value("Test task"));
 
-    @Test
-    void getMyTasks_defaultParameters_returnsOk() throws Exception {
-        TaskResponseDto response = createTaskResponse();
+		verify(taskService).createTask(any(TaskRequestDto.class));
+	}
 
-        Page<TaskResponseDto> page = new PageImpl<>(
-                List.of(response),
-                PageRequest.of(
-                        0, 5, Sort.by("createdAt").descending()),
-                1);
+	// ---------------------------------------------------------
+	// GET /api/tasks
+	// ---------------------------------------------------------
 
-        when(taskService.getMyTasks(
-                0, 5, "createdAt", "desc", null, null))
-                .thenReturn(page);
+	@Test
+	void getMyTasks_defaultParameters_returnsOk() throws Exception {
+		TaskResponseDto response = createTaskResponse();
 
-        mockMvc.perform(get("/api/tasks")
-                        .with(authenticatedUser()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].id").value(1))
-                .andExpect(jsonPath("$.content[0].title")
-                        .value("Test task"))
-                .andExpect(jsonPath("$.totalElements").value(1));
+		Page<TaskResponseDto> page = new PageImpl<>(List.of(response),
+				PageRequest.of(0, 5, Sort.by("createdAt").descending()), 1);
 
-        verify(taskService).getMyTasks(
-                0, 5, "createdAt", "desc", null, null);
-    }
+		when(taskService.getMyTasks(0, 5, "createdAt", "desc", null, null)).thenReturn(page);
 
-    @Test
-    void getMyTasks_customParameters_passesFiltersToService()
-            throws Exception {
+		mockMvc.perform(get("/api/tasks").with(authenticatedUser())).andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].id").value(1))
+				.andExpect(jsonPath("$.content[0].title").value("Test task"))
+				.andExpect(jsonPath("$.totalElements").value(1));
 
-        TaskResponseDto response = createTaskResponse();
+		verify(taskService).getMyTasks(0, 5, "createdAt", "desc", null, null);
+	}
 
-        Page<TaskResponseDto> page = new PageImpl<>(
-                List.of(response),
-                PageRequest.of(1, 10, Sort.by("title").ascending()),
-                1);
+	@Test
+	void getMyTasks_customParameters_passesFiltersToService() throws Exception {
 
-        when(taskService.getMyTasks(
-                1, 10, "title", "asc",
-                TaskStatus.IN_PROGRESS, "urgent"))
-                .thenReturn(page);
+		TaskResponseDto response = createTaskResponse();
 
-        mockMvc.perform(get("/api/tasks")
-                        .with(authenticatedUser())
-                        .param("page", "1")
-                        .param("size", "10")
-                        .param("sortBy", "title")
-                        .param("direction", "asc")
-                        .param("status", "IN_PROGRESS")
-                        .param("keyword", "urgent"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].id").value(1));
+		Page<TaskResponseDto> page = new PageImpl<>(List.of(response),
+				PageRequest.of(1, 10, Sort.by("title").ascending()), 1);
 
-        verify(taskService).getMyTasks(
-                1, 10, "title", "asc",
-                TaskStatus.IN_PROGRESS, "urgent");
-    }
+		when(taskService.getMyTasks(1, 10, "title", "asc", TaskStatus.IN_PROGRESS, "urgent")).thenReturn(page);
 
-    @Test
-    void getMyTasks_invalidStatus_returnsBadRequest() throws Exception {
-        mockMvc.perform(get("/api/tasks")
-                        .with(authenticatedUser())
-                        .param("status", "INVALID_STATUS"))
-                .andExpect(status().isBadRequest());
+		mockMvc.perform(get("/api/tasks").with(authenticatedUser()).param("page", "1").param("size", "10")
+				.param("sortBy", "title").param("direction", "asc").param("status", "IN_PROGRESS")
+				.param("keyword", "urgent")).andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(1));
 
-        verifyNoInteractions(taskService);
-    }
+		verify(taskService).getMyTasks(1, 10, "title", "asc", TaskStatus.IN_PROGRESS, "urgent");
+	}
 
-    // ---------------------------------------------------------
-    // GET /api/tasks/{taskId}
-    // ---------------------------------------------------------
+	@Test
+	void getMyTasks_invalidStatus_returnsBadRequest() throws Exception {
+		mockMvc.perform(get("/api/tasks").with(authenticatedUser()).param("status", "INVALID_STATUS"))
+				.andExpect(status().isBadRequest());
 
-    @Test
-    void getTaskById_taskExists_returnsOk() throws Exception {
-        TaskResponseDto response = createTaskResponse();
+		verifyNoInteractions(taskService);
+	}
 
-        when(taskService.getTaskById(1L)).thenReturn(response);
+	// ---------------------------------------------------------
+	// GET /api/tasks/{taskId}
+	// ---------------------------------------------------------
 
-        mockMvc.perform(get("/api/tasks/{taskId}", 1L)
-                        .with(authenticatedUser()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.title").value("Test task"));
+	@Test
+	void getTaskById_taskExists_returnsOk() throws Exception {
+		TaskResponseDto response = createTaskResponse();
 
-        verify(taskService).getTaskById(1L);
-    }
+		when(taskService.getTaskById(1L)).thenReturn(response);
 
-    // ---------------------------------------------------------
-    // PUT /api/tasks/{taskId}
-    // ---------------------------------------------------------
+		mockMvc.perform(get("/api/tasks/{taskId}", 1L).with(authenticatedUser())).andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(1)).andExpect(jsonPath("$.title").value("Test task"));
 
-    @Test
-    void updateTask_validRequest_returnsOk() throws Exception {
-        TaskRequestDto request = new TaskRequestDto();
-        request.setTitle("Updated task");
-        request.setDescription("Updated description");
+		verify(taskService).getTaskById(1L);
+	}
 
-        TaskResponseDto response = createTaskResponse();
-        when(response.getTitle()).thenReturn("Updated task");
+	// ---------------------------------------------------------
+	// PUT /api/tasks/{taskId}
+	// ---------------------------------------------------------
 
-        when(taskService.updateTask(
-                eq(1L), any(TaskRequestDto.class)))
-                .thenReturn(response);
+	@Test
+	void updateTask_validRequest_returnsOk() throws Exception {
+		TaskRequestDto request = new TaskRequestDto();
+		request.setTitle("Updated task");
+		request.setDescription("Updated description");
 
-        mockMvc.perform(put("/api/tasks/{taskId}", 1L)
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("Updated task"));
+		// Create a real DTO with the expected values
+		TaskResponseDto response = TaskResponseDto.builder().id(1L).title("Updated task").build();
 
-        verify(taskService).updateTask(
-                eq(1L), any(TaskRequestDto.class));
-    }
+		// Mock the service response
+		when(taskService.updateTask(eq(1L), any(TaskRequestDto.class))).thenReturn(response);
 
-    // ---------------------------------------------------------
-    // DELETE /api/tasks/{taskId}
-    // ---------------------------------------------------------
+		mockMvc.perform(put("/api/tasks/{taskId}", 1L).with(authenticatedUser()).contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(1)).andExpect(jsonPath("$.title").value("Updated task"));
 
-    @Test
-    void deleteTask_taskExists_returnsNoContent() throws Exception {
-        mockMvc.perform(delete("/api/tasks/{taskId}", 1L)
-                        .with(authenticatedUser()))
-                .andExpect(status().isNoContent());
+		verify(taskService).updateTask(eq(1L), any(TaskRequestDto.class));
+	}
 
-        verify(taskService).deleteTask(1L);
-    }
+	// ---------------------------------------------------------
+	// DELETE /api/tasks/{taskId}
+	// ---------------------------------------------------------
 
-    // ---------------------------------------------------------
-    // PATCH /api/tasks/{taskId}/status
-    // ---------------------------------------------------------
+	@Test
+	void deleteTask_taskExists_returnsNoContent() throws Exception {
+		mockMvc.perform(delete("/api/tasks/{taskId}", 1L).with(authenticatedUser())).andExpect(status().isNoContent());
 
-    @Test
-    void updateTaskStatus_validRequest_returnsOk() throws Exception {
-        TaskStatusUpdateDto request = new TaskStatusUpdateDto();
-        request.setStatus(TaskStatus.DONE);
+		verify(taskService).deleteTask(1L);
+	}
 
-        TaskResponseDto response = createTaskResponse();
+	// ---------------------------------------------------------
+	// PATCH /api/tasks/{taskId}/status
+	// ---------------------------------------------------------
 
-        when(taskService.updateTaskStatus(1L, TaskStatus.DONE))
-                .thenReturn(response);
+	@Test
+	void updateTaskStatus_validRequest_returnsOk() throws Exception {
+		TaskStatusUpdateDto request = new TaskStatusUpdateDto();
+		request.setStatus(TaskStatus.DONE);
 
-        mockMvc.perform(patch("/api/tasks/{taskId}/status", 1L)
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
+		TaskResponseDto response = TaskResponseDto.builder().id(1L).title("Test task").build();
 
-        verify(taskService).updateTaskStatus(1L, TaskStatus.DONE);
-    }
+		when(taskService.updateTaskStatus(1L, TaskStatus.DONE)).thenReturn(response);
 
-    @Test
-    void updateTaskStatus_invalidStatus_returnsBadRequest()
-            throws Exception {
+		mockMvc.perform(patch("/api/tasks/{taskId}/status", 1L).contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(1)).andExpect(jsonPath("$.title").value("Test task"));
 
-        mockMvc.perform(patch("/api/tasks/{taskId}/status", 1L)
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"INVALID_STATUS\"}"))
-                .andExpect(status().isBadRequest());
+		verify(taskService).updateTaskStatus(1L, TaskStatus.DONE);
+	}
 
-        verifyNoInteractions(taskService);
-    }
+	@Test
+	void updateTaskStatus_invalidStatus_returnsBadRequest() throws Exception {
 
-    @Test
-    void createTask_malformedJson_returnsBadRequest() throws Exception {
-        mockMvc.perform(post("/api/tasks")
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{invalid-json"))
-                .andExpect(status().isBadRequest());
+		mockMvc.perform(patch("/api/tasks/{taskId}/status", 1L).with(authenticatedUser())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"INVALID_STATUS\"}"))
+				.andExpect(status().isBadRequest());
 
-        verifyNoInteractions(taskService);
-    }
+		verifyNoInteractions(taskService);
+	}
+
+	@Test
+	void createTask_malformedJson_returnsBadRequest() throws Exception {
+		mockMvc.perform(post("/api/tasks").with(authenticatedUser()).contentType(MediaType.APPLICATION_JSON)
+				.content("{invalid-json")).andExpect(status().isBadRequest());
+
+		verifyNoInteractions(taskService);
+	}
 }

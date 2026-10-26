@@ -3,6 +3,7 @@ package com.boardtask.kanban.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,7 +38,8 @@ public class UserController {
 	 * @return
 	 */
 	@PutMapping("/update-profile")
-	public ResponseEntity<UserResponseDto> updateProfile(UpdateProfileRequestDto updateProfileRequestDto) {
+	public ResponseEntity<UserResponseDto> updateProfile(@RequestBody UpdateProfileRequestDto updateProfileRequestDto) {
+
 		return ResponseEntity.ok(userService.updateProfile(updateProfileRequestDto));
 	}
 
@@ -47,7 +49,8 @@ public class UserController {
 	 * @return
 	 */
 	@PutMapping("/change-password")
-	public ResponseEntity<Void> changePassword(ChangePasswordRequestDto passwordRequestDto) {
+	public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordRequestDto passwordRequestDto) {
+
 		userService.changePassword(passwordRequestDto);
 		return ResponseEntity.noContent().build();
 	}

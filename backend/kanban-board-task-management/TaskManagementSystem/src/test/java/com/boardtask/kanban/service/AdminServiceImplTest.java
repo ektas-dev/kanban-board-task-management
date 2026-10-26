@@ -41,7 +41,6 @@ import com.boardtask.kanban.mapper.TaskMapper;
 import com.boardtask.kanban.mapper.UserMapper;
 import com.boardtask.kanban.repository.AppUserRepository;
 import com.boardtask.kanban.repository.TaskRepository;
-import com.boardtask.kanban.service.AdminServiceImpl;
 
 @ExtendWith(MockitoExtension.class)
 class AdminServiceImplTest {

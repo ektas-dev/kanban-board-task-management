@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -26,14 +27,12 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.boardtask.kanban.config.SecurityConfig;
 import com.boardtask.kanban.dto.admin.AdminDashboardResponseDto;
 import com.boardtask.kanban.dto.task.TaskResponseDto;
 import com.boardtask.kanban.dto.user.UserResponseDto;
 import com.boardtask.kanban.security.JwtService;
 import com.boardtask.kanban.service.AdminService;
-
-import org.springframework.context.annotation.Import;
-import com.boardtask.kanban.config.SecurityConfig;
 
 @WebMvcTest(AdminController.class)
 @Import(SecurityConfig.class)
@@ -47,7 +46,7 @@ class AdminControllerTest {
 
 	@MockitoBean
 	private JwtService jwtService;
-	
+
 	@MockitoBean
 	private UserDetailsService userDetailsService;
 
@@ -91,7 +90,7 @@ class AdminControllerTest {
 	void getAllUsers_customParameters_passesParametersToService() throws Exception {
 
 		Page<UserResponseDto> page = new PageImpl<>(List.of(userDto),
-				PageRequest.of(2, 10, Sort.by("name").ascending()), 21);
+				PageRequest.of(2, 10, Sort.by("name").ascending()), 25);
 
 		when(adminService.getAllUsers(2, 10, "name", "asc")).thenReturn(page);
 
@@ -157,13 +156,13 @@ class AdminControllerTest {
 	void getAllTasks_customParameters_passesParametersToService() throws Exception {
 
 		Page<TaskResponseDto> page = new PageImpl<>(List.of(taskDto),
-				PageRequest.of(1, 20, Sort.by("title").ascending()), 25);
+				PageRequest.of(0, 20, Sort.by("title").ascending()), 25);
 
 		when(adminService.getAllTasks(1, 20, "title", "asc")).thenReturn(page);
 
 		mockMvc.perform(get("/api/admin/tasks").param("page", "1").param("size", "20").param("sortBy", "title")
 				.param("direction", "asc").with(user("admin").authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(20));
+				.andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(25));
 
 		verify(adminService).getAllTasks(1, 20, "title", "asc");
 	}

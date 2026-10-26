@@ -18,141 +18,118 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.boardtask.kanban.controller.UserController;
 import com.boardtask.kanban.dto.user.ChangePasswordRequestDto;
 import com.boardtask.kanban.dto.user.UpdateProfileRequestDto;
 import com.boardtask.kanban.dto.user.UserResponseDto;
+import com.boardtask.kanban.security.JwtService;
 import com.boardtask.kanban.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest(UserController.class)
+@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+	@Autowired
+	private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+	@Autowired
+	private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private UserService userService;
+	@MockitoBean
+	private UserService userService;
 
-    private org.springframework.test.web.servlet.request
-            .RequestPostProcessor authenticatedUser() {
-        return user("testuser").authorities(
-                new SimpleGrantedAuthority("ROLE_USER"));
-    }
+	@MockitoBean
+	private JwtService jwtService;
 
-    private UserResponseDto createUserResponse() {
-        UserResponseDto dto = org.mockito.Mockito.mock(
-                UserResponseDto.class);
+	private org.springframework.test.web.servlet.request.RequestPostProcessor authenticatedUser() {
+		return user("testuser").authorities(new SimpleGrantedAuthority("ROLE_USER"));
+	}
 
-        when(dto.getId()).thenReturn(1L);
-        when(dto.getName()).thenReturn("John Doe");
-        when(dto.getEmail()).thenReturn("john@example.com");
+	private UserResponseDto createUserResponse() {
+		UserResponseDto dto = org.mockito.Mockito.mock(UserResponseDto.class);
 
-        return dto;
-    }
+		when(dto.getId()).thenReturn(1L);
+		when(dto.getName()).thenReturn("John Doe");
+		when(dto.getEmail()).thenReturn("john@example.com");
 
-    // ---------------------------------------------------------
-    // GET /api/users/profile-details
-    // ---------------------------------------------------------
+		return dto;
+	}
 
-    @Test
-    void getProfile_authenticatedUser_returnsOk() throws Exception {
-        UserResponseDto response = createUserResponse();
+	// ---------------------------------------------------------
+	// GET /api/users/profile-details
+	// ---------------------------------------------------------
 
-        when(userService.getProfile()).thenReturn(response);
+	@Test
+	void getProfile_authenticatedUser_returnsOk() throws Exception {
+		UserResponseDto response = createUserResponse();
 
-        mockMvc.perform(get("/api/users/profile-details")
-                        .with(authenticatedUser()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.name").value("John Doe"))
-                .andExpect(jsonPath("$.email")
-                        .value("john@example.com"));
+		when(userService.getProfile()).thenReturn(response);
 
-        verify(userService).getProfile();
-    }
+		mockMvc.perform(get("/api/users/profile-details").with(authenticatedUser())).andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(1)).andExpect(jsonPath("$.name").value("John Doe"))
+				.andExpect(jsonPath("$.email").value("john@example.com"));
 
-    // ---------------------------------------------------------
-    // PUT /api/users/update-profile
-    // ---------------------------------------------------------
+		verify(userService).getProfile();
+	}
 
-    @Test
-    void updateProfile_validRequest_returnsOk() throws Exception {
-        UpdateProfileRequestDto request =
-                new UpdateProfileRequestDto();
-        request.setName("Updated Name");
+	// ---------------------------------------------------------
+	// PUT /api/users/update-profile
+	// ---------------------------------------------------------
 
-        UserResponseDto response = createUserResponse();
-        when(response.getName()).thenReturn("Updated Name");
+	@Test
+	void updateProfile_validRequest_returnsOk() throws Exception {
+		UpdateProfileRequestDto request = new UpdateProfileRequestDto();
+		request.setName("Updated Name");
 
-        when(userService.updateProfile(
-                any(UpdateProfileRequestDto.class)))
-                .thenReturn(response);
+		UserResponseDto response = createUserResponse();
+		when(response.getName()).thenReturn("Updated Name");
 
-        mockMvc.perform(put("/api/users/update-profile")
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Updated Name"));
+		when(userService.updateProfile(any(UpdateProfileRequestDto.class))).thenReturn(response);
 
-        verify(userService).updateProfile(
-                any(UpdateProfileRequestDto.class));
-    }
+		mockMvc.perform(put("/api/users/update-profile").with(authenticatedUser())
+				.contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Updated Name"));
 
-    // ---------------------------------------------------------
-    // PUT /api/users/change-password
-    // ---------------------------------------------------------
+		verify(userService).updateProfile(any(UpdateProfileRequestDto.class));
+	}
 
-    @Test
-    void changePassword_validRequest_returnsNoContent()
-            throws Exception {
+	// ---------------------------------------------------------
+	// PUT /api/users/change-password
+	// ---------------------------------------------------------
 
-        ChangePasswordRequestDto request =
-                new ChangePasswordRequestDto();
-        request.setCurrentPassword("OldPassword123!");
-        request.setNewPassword("NewPassword123!");
+	@Test
+	void changePassword_validRequest_returnsNoContent() throws Exception {
 
-        mockMvc.perform(put("/api/users/change-password")
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNoContent());
+		ChangePasswordRequestDto request = new ChangePasswordRequestDto();
+		request.setCurrentPassword("OldPassword123!");
+		request.setNewPassword("NewPassword123!");
 
-        verify(userService).changePassword(
-                any(ChangePasswordRequestDto.class));
-    }
+		mockMvc.perform(put("/api/users/change-password").with(authenticatedUser())
+				.contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isNoContent());
 
-    // ---------------------------------------------------------
-    // Malformed JSON
-    // ---------------------------------------------------------
+		verify(userService).changePassword(any(ChangePasswordRequestDto.class));
+	}
 
-    @Test
-    void updateProfile_malformedJson_returnsBadRequest()
-            throws Exception {
+	// ---------------------------------------------------------
+	// Malformed JSON
+	// ---------------------------------------------------------
 
-        mockMvc.perform(put("/api/users/update-profile")
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{invalid-json"))
-                .andExpect(status().isBadRequest());
+	@Test
+	void updateProfile_malformedJson_returnsBadRequest() throws Exception {
 
-        verifyNoInteractions(userService);
-    }
+		mockMvc.perform(put("/api/users/update-profile").with(authenticatedUser())
+				.contentType(MediaType.APPLICATION_JSON).content("{invalid-json")).andExpect(status().isBadRequest());
 
-    @Test
-    void changePassword_malformedJson_returnsBadRequest()
-            throws Exception {
+		verifyNoInteractions(userService);
+	}
 
-        mockMvc.perform(put("/api/users/change-password")
-                        .with(authenticatedUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{invalid-json"))
-                .andExpect(status().isBadRequest());
+	@Test
+	void changePassword_malformedJson_returnsBadRequest() throws Exception {
 
-        verifyNoInteractions(userService);
-    }
+		mockMvc.perform(put("/api/users/change-password").with(authenticatedUser())
+				.contentType(MediaType.APPLICATION_JSON).content("{invalid-json")).andExpect(status().isBadRequest());
+
+		verifyNoInteractions(userService);
+	}
 }
